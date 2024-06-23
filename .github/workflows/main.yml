@@ -24,13 +24,19 @@ jobs:
     - name: Install dependencies
       run: npm ci
     
-    - name: Run TypeScript compiler
-      run: npx tsc
-    
-    - name: Fix compiler issues and add imports
+    - name: Run TypeScript compiler and capture errors
       run: |
-        npx ts-prune
-        npx eslint . --ext .ts,.tsx --fix
+        npx tsc --noEmit > tsc_output.txt 2>&1 || true
+        echo "TypeScript compiler output:"
+        cat tsc_output.txt
+    
+    - name: Attempt to fix compiler issues and add imports
+      run: |
+        echo "Running ts-prune..."
+        npx ts-prune || echo "ts-prune completed with issues"
+        
+        echo "Running ESLint fix..."
+        npx eslint . --ext .ts,.tsx --fix || echo "ESLint fix completed with issues"
     
     - name: Check for changes
       id: git-check
@@ -42,10 +48,19 @@ jobs:
       uses: peter-evans/create-pull-request@v3
       with:
         token: ${{ secrets.REPO_ACCESS_TOKEN }}
-        commit-message: 'fix: Automated TypeScript fixes'
-        title: 'Automated TypeScript Fixes'
+        commit-message: 'fix: Attempted TypeScript fixes'
+        title: 'Attempted TypeScript Fixes'
         body: |
-          This is an automated PR to fix TypeScript compiler issues and add missing imports.
-          Please review the changes carefully before merging.
+          This PR contains attempted fixes for TypeScript issues.
+          Some errors may persist and require manual intervention.
+          Please review the changes carefully and make any necessary adjustments before merging.
+          
+          TypeScript compiler output is available in the workflow logs.
         branch: automated-typescript-fixes
         base: main
+    
+    - name: Upload TypeScript compiler output
+      uses: actions/upload-artifact@v2
+      with:
+        name: tsc-output
+        path: tsc_output.txt
